@@ -22,24 +22,64 @@ const AppStage = ({ payout, game_anim_status, dimension, pixiDimension }: { payo
 
     const gradTexture = useMemo(() => createGradTexture(dimension), [dimension])
 
-    const handleResize = () => {
+    const handleResize = useCallback(() => {
         setPlaneScale(interpolate(window.innerWidth, 400, 1920, 0.5, 0.2))
         setPulseBase(interpolate(window.innerWidth, 400, 1920, 0.6, 0.8))
-    }
+    }, [])
     useEffect(() => {
-        const _plane = []
-        for (let i = 1; i <= 15; i++) {
-            _plane.push(Texture.from(`plane-anim-${i}.${webpORpng}`));
+        const _plane: Texture[] = []
+        if (process.env.NODE_ENV === 'development') {
+            // Create a simple plane texture for development
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                // Clear background
+                ctx.fillStyle = 'transparent';
+                ctx.fillRect(0, 0, 64, 64);
+
+                // Draw a more visible plane shape
+                ctx.fillStyle = '#ff0000';
+                // Body
+                ctx.fillRect(10, 28, 44, 8);
+                // Wings
+                ctx.fillRect(25, 20, 14, 24);
+                // Tail
+                ctx.fillRect(50, 24, 8, 16);
+                // Cockpit
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(8, 30, 8, 4);
+
+                console.log('Created plane texture for development');
+            }
+            const devTexture = Texture.from(canvas);
+            for (let i = 1; i <= 15; i++) {
+                _plane.push(devTexture);
+            }
+        } else {
+            for (let i = 1; i <= 15; i++) {
+                _plane.push(Texture.from(`plane-anim-${i}.${webpORpng}`));
+            }
         }
         setPlaneFrames(_plane)
-        const t_out = setInterval(() => setOntoCorner(prev => (prev + 1)), 100)
+        console.log('Plane frames set:', _plane.length, 'frames')
+        const t_out = setInterval(() => setOntoCorner(prev => (prev + 1) % 100), 100)
         handleResize()
         window.addEventListener('resize', handleResize)
         return () => {
             window.removeEventListener('resize', handleResize)
             clearInterval(t_out)
+            // Clean up textures to prevent memory leaks
+            if (process.env.NODE_ENV === 'development') {
+                _plane.forEach(texture => {
+                    if (texture && texture.destroy) {
+                        texture.destroy();
+                    }
+                });
+            }
         }
-    }, [])
+    }, [handleResize])
 
     useTick((delta) => {
         setHueRotate(prev => (prev + delta / 500))
@@ -60,35 +100,77 @@ const AppStage = ({ payout, game_anim_status, dimension, pixiDimension }: { payo
     useTick((delta) => {
         if (game_anim_status !== "ANIM_STARTED") return
         const amp = 0.06
-        let pulse = amp;
         tickRef.current += delta * 0.01
-        pulse = Math.sin(tickRef.current) * amp
+        const pulse = Math.sin(tickRef.current) * amp
         setPulseGraph(pulse)
+        updatePlaneX()
     })
-    useEffect(() => { setPlaneX(smoothen(Math.min(tickRef.current * 300, dimension.width - 40), { width: dimension.width - 40, height: dimension.height - 40 })) }, [tickRef.current])
+    // Update plane X position based on tick
+    const updatePlaneX = useCallback(() => {
+        const newX = smoothen(Math.min(tickRef.current * 300, dimension.width - 40), { width: dimension.width - 40, height: dimension.height - 40 });
+        setPlaneX(newX);
+    }, [dimension.width, dimension.height]);
+
+    useEffect(() => {
+        updatePlaneX();
+    }, [updatePlaneX]);
     useEffect(() => {
         if (game_anim_status === "WAITING") tickRef.current = 0
         if (game_anim_status === "ANIM_CRASHED") setOntoCorner(0)
     }, [game_anim_status])
 
-    const posPlane = useMemo(() => {
-        const _ontoCorner = game_anim_status === "ANIM_CRASHED" ? ontoCorner : 0
-        return {
-            x: (pulseBase + pulseGraph) * planeX + _ontoCorner * 150 + 40,
-            y: dimension.height - 40 - (1 - pulseGraph) * curveFunction(planeX, { width: dimension.width - 40, height: dimension.height - 40 }) - _ontoCorner * 50
+    // Find the peak x value for the curve
+    const findPeakX = useCallback(() => {
+        let peakX = 0;
+        let peakY = -Infinity;
+        for (let x = 0; x <= dimension.width - 40; x += 1) {
+            const y = curveFunction(x, { width: dimension.width - 40, height: dimension.height - 40 });
+            if (y > peakY) {
+                peakY = y;
+                peakX = x;
+            }
         }
-    }, [pulseGraph, planeX, dimension, game_anim_status, ontoCorner])
+        return peakX;
+    }, [dimension]);
+
+    const posPlane = useMemo(() => {
+        const xPeak = findPeakX();
+        const yPeak = curveFunction(xPeak, { width: dimension.width - 40, height: dimension.height - 40 });
+        return {
+            x: xPeak + 40,
+            y: dimension.height - 40 - yPeak
+        };
+    }, [findPeakX, dimension]);
+
     const colorMatrix = useMemo(() => {
         const c = new ColorMatrixFilter();
         c.hue(hueRotate * 100, true);
         return c
     }, [hueRotate])
 
+    const payoutTextStyle = useMemo(() => new TextStyle({
+        align: 'center',
+        fontFamily: 'Roboto',
+        fontSize: 160,
+        fontWeight: '700',
+        fill: ['#ffffff', '#ffffff'],
+        stroke: '#111111',
+        strokeThickness: 2,
+        letterSpacing: 0,
+        dropShadow: false,
+        dropShadowColor: '#ccced2',
+        dropShadowBlur: 4,
+        dropShadowAngle: Math.PI / 6,
+        dropShadowDistance: 6,
+    }), [])
+
     return (
         <Container>
             <Sprite filters={[colorMatrix]} texture={gradTexture} width={dimension.width - 40} height={dimension.height - 40} position={{ x: 40, y: 0 }} />
             <Sprite
-                image={`${process.env.REACT_APP_ASSETS_IMAGE_URL}${webpORpng}/sun-like-bg.${webpORpng}`}
+                image={process.env.NODE_ENV === 'development' ?
+                    'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K' :
+                    `${process.env.REACT_APP_ASSETS_IMAGE_URL}${webpORpng}/sun-like-bg.${webpORpng}`}
                 anchor={0.5}
                 x={-100} y={dimension.height + 100}
                 rotation={hueRotate}
@@ -109,42 +191,28 @@ const AppStage = ({ payout, game_anim_status, dimension, pixiDimension }: { payo
                     ref={maskRef}
                 />
             </Container>
-            <Container visible={game_anim_status !== "WAITING"}>
-                {planeFrames !== undefined &&
+            <Container visible={true}>
+                {planeFrames !== undefined && (
                     <AnimatedSprite
-                        mask={gameBoardMask.current}
-                        rotation={-Math.PI / 10}
+                        rotation={process.env.NODE_ENV === 'development' ? 0 : -Math.PI / 10}
                         pivot={{ x: 0.08, y: 0.54 }}
                         textures={planeFrames}
                         anchor={{ x: 0.07, y: 0.55 }}
-                        scale={planeScale}
+                        scale={process.env.NODE_ENV === 'development' ? 2.0 : planeScale}
                         animationSpeed={0.5}
                         isPlaying={true}
                         initialFrame={0}
                         position={posPlane}
 
-                    />}
-                <Text visible={game_anim_status === "ANIM_STARTED"} text={payout.toFixed(2) + "x"}
+                    />)}
+                <Text
+                    visible={game_anim_status === "ANIM_STARTED"}
+                    text={payout.toFixed(2) + "x"}
                     anchor={0.5}
                     x={dimension.width / 2}
                     y={dimension.height / 2}
-                    style={
-                        new TextStyle({
-                            align: 'center',
-                            fontFamily: 'Roboto',
-                            fontSize: 160,
-                            fontWeight: '700',
-                            fill: ['#ffffff', '#ffffff'], // gradient
-                            stroke: '#111111',
-                            strokeThickness: 2,
-                            letterSpacing: 0,
-                            dropShadow: false,
-                            dropShadowColor: '#ccced2',
-                            dropShadowBlur: 4,
-                            dropShadowAngle: Math.PI / 6,
-                            dropShadowDistance: 6,
-                        })
-                    } />
+                    style={payoutTextStyle}
+                />
 
             </Container>
             <Graphics draw={drawInnerBoundery} />
@@ -153,55 +221,41 @@ const AppStage = ({ payout, game_anim_status, dimension, pixiDimension }: { payo
                 <Graphics position={{ x: 40, y: dimension.height - 40 }} scale={{ x: dimension.width - 40, y: 40 }} draw={dotLeftBottom} />
             </Container>
             <Container mask={dotRef.current}>
-                {Array.from({ length: 30 }, (_, i) => (i * 140000 / pixiDimension.width + 10)).map((coor, i) =>
-                    <Container key={i}>
-                        <Sprite
-                            scale={0.4}
-                            image={`${process.env.REACT_APP_ASSETS_IMAGE_URL}${webpORpng}/dot.${webpORpng}`}
-                            anchor={0.5}
-                            // x={20} y={coor + (Math.max(0, tickRef.current - 5) * 100 % (140000 / pixiDimension.width)) - 100}
-                            x={20} y={coor + (hueRotate * 400 % (140000 / pixiDimension.width)) - 100}
-                        />
-                        <Sprite
-                            scale={0.4}
-                            image={`${process.env.REACT_APP_ASSETS_IMAGE_URL}${webpORpng}/dot.${webpORpng}`}
-                            anchor={0.5}
-                            // x={coor - (Math.max(0, tickRef.current - 5) * 100 % (140000 / pixiDimension.width)) - 100}
-                            // y={dimension.height - 20}
-                            x={coor - (hueRotate * 400 % (140000 / pixiDimension.width)) - 100}
-                            y={dimension.height - 20}
-                        />
-                    </Container>
-                )}
+                {useMemo(() => {
+                    const dotImage = process.env.NODE_ENV === 'development' ?
+                        'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1zbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K' :
+                        `${process.env.REACT_APP_ASSETS_IMAGE_URL}${webpORpng}/dot.${webpORpng}`;
+
+                    const animOffset = hueRotate * 400 % (140000 / pixiDimension.width);
+
+                    return Array.from({ length: 30 }, (_, i) => {
+                        const coor = i * 140000 / pixiDimension.width + 10;
+                        return (
+                            <Container key={i}>
+                                <Sprite
+                                    scale={0.4}
+                                    image={dotImage}
+                                    anchor={0.5}
+                                    x={20}
+                                    y={coor + animOffset - 100}
+                                />
+                                <Sprite
+                                    scale={0.4}
+                                    image={dotImage}
+                                    anchor={0.5}
+                                    x={coor - animOffset - 100}
+                                    y={dimension.height - 20}
+                                />
+                            </Container>
+                        );
+                    });
+                }, [hueRotate, pixiDimension.width, dimension.height])}
             </Container>
             <Graphics draw={drawOuterBoundery} />
 
             {/* <WaitingSprite visible={game_anim_status === "WAITING"} dimension={dimension} /> */}
 
         </Container>
-
-        // <Text text="Loading..." anchor={0.5}
-        //     x={700}
-        //     y={315}
-        //     style={
-        //         new TextStyle({
-        //             align: 'center',
-        //             fontFamily: '"Source Sans Pro", Helvetica, sans-serif',
-        //             fontSize: 50,
-        //             fontWeight: '400',
-        //             fill: ['#ffffff', '#00ff99'], // gradient
-        //             stroke: '#01d27e',
-        //             strokeThickness: 5,
-        //             letterSpacing: 20,
-        //             dropShadow: true,
-        //             dropShadowColor: '#ccced2',
-        //             dropShadowBlur: 4,
-        //             dropShadowAngle: Math.PI / 6,
-        //             dropShadowDistance: 6,
-        //             wordWrap: true,
-        //             wordWrapWidth: 440,
-        //         })
-        //     } />
     );
 };
 export default AppStage

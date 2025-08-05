@@ -26,11 +26,19 @@ const Aviator = () => {
     const [chatOpen, setChatOpen] = useState(false)
 
     React.useEffect(() => {
-        Assets.load(urls).then(() => {
+        // Skip asset loading in development
+        const loadAssets = process.env.NODE_ENV === 'development' ? Promise.resolve() : Assets.load(urls);
+        loadAssets.then(() => {
             (async () => {
                 const urlParams = new URLSearchParams(window.location.search);
                 const token: string = urlParams.get('token') || "";
                 if (!token) {
+                    // Allow development mode without token
+                    if (process.env.NODE_ENV === 'development') {
+                        setAviatorState(prev => ({ ...prev, auth: true }))
+                        setLoaded(true)
+                        return
+                    }
                     setAviatorState(prev => ({ ...prev, auth: false }))
                     return
                 }
@@ -81,7 +89,10 @@ const Aviator = () => {
 
             })()
 
-            loadSound()
+            // Skip sound loading in development
+            if (process.env.NODE_ENV !== 'development') {
+                loadSound()
+            }
         });
 
 

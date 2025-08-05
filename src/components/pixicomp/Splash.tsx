@@ -22,7 +22,10 @@ const Splash = ({ loaded, setOpenGame }: { loaded: boolean, setOpenGame: Dispatc
             <div className='flex flex-col gap-4 items-center justify-center'>
                 <svg width={243} height={105} className='-rotate-[25deg]'><use href="#svg-plane" /></svg>
 
-                <img alt="aviator" src={`${process.env.REACT_APP_ASSETS_IMAGE_URL}${webpORpng}/aviator-text.${webpORpng}`} className='w-[200px]' />
+                {process.env.NODE_ENV === 'development' ? 
+                    <div className="text-4xl font-bold text-white">AVIATOR</div> : 
+                    <img alt="aviator" src={`${process.env.REACT_APP_ASSETS_IMAGE_URL}${webpORpng}/aviator-text.${webpORpng}`} className='w-[200px]' />
+                }
 
             </div>
             {loaded ?

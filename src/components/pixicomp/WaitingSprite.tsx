@@ -19,7 +19,9 @@ const WaitingSprite = ({ visible, dimension }: { visible: boolean, dimension: di
     return (
         <Container visible={visible} >
             <Sprite
-                image={`${process.env.REACT_APP_ASSETS_IMAGE_URL}${webpORpng}/propeller.${webpORpng}`}
+                image={process.env.NODE_ENV === 'development' ? 
+                    'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K' : 
+                    `${process.env.REACT_APP_ASSETS_IMAGE_URL}${webpORpng}/propeller.${webpORpng}`}
                 anchor={0.5} scale={scale}
                 x={dimension.width / 2} y={dimension.height / 2}
                 rotation={rotate * 0.3}

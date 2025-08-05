@@ -9,7 +9,7 @@ const initValue: aviatorStateType = {
         height: 630
     },
     auth: true,
-    balance: 0,
+    balance: process.env.NODE_ENV === 'development' ? 10000 : 0,
     autoPlayParams: [
         {
             nOfRounds: 0,

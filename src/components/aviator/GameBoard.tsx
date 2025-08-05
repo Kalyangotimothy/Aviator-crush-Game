@@ -33,8 +33,50 @@ const GameBoard = ({ bet6, chatParam: { chatOpen, setChatOpen } }: { bet6: strin
 
     const [betButtonCount, setBetButtonCount] = useState(2)
     const [curPayout, setCurPayout] = useState(0)
+    
+    // Mock counter for development
+    useEffect(() => {
+        if (process.env.NODE_ENV === 'development') {
+            let crashPoint = Math.random() * 49 + 1; // Random crash point between 1 and 50
+            let gameStartTime = Date.now();
+            
+            const interval = setInterval(() => {
+                setCurPayout(prev => {
+                    if (prev >= crashPoint) {
+                        setAviatorState(prev => ({ ...prev, game_anim_status: "ANIM_CRASHED" }))
+                        setCrashHistory(prev => ([`${crashPoint.toFixed(2)}x`, ...prev]))
+                        setTimeout(() => {
+                            setAviatorState(prev => ({ ...prev, game_anim_status: "WAITING" }))
+                            setCurPayout(0); // Reset multiplier to zero during waiting
+                        }, 7000);
+                        return crashPoint;
+                    }
+                    return prev + 0.01; // Increment multiplier by 0.01 every 100ms
+                });
+            }, 100);
+            
+            const gameInterval = setInterval(() => {
+                crashPoint = Math.random() * 49 + 1; // New random crash point between 1 and 50 for next round
+                gameStartTime = Date.now();
+                setAviatorState(prev => ({ ...prev, game_anim_status: "ANIM_STARTED" }))
+                setCurPayout(1.00); // Reset to starting multiplier
+            }, 15000); 
+            
+            // Initial game start - start with waiting phase
+            setCurPayout(0); // Start at zero
+            setTimeout(() => {
+                setAviatorState(prev => ({ ...prev, game_anim_status: "ANIM_STARTED" }))
+                setCurPayout(1.00);
+            }, 2000);
+            
+            return () => {
+                clearInterval(interval);
+                clearInterval(gameInterval);
+            };
+        }
+    }, [])
 
-    const [pendingBet, setPendingBet] = useState<boolean[]>([false, false])
+    const [pendingBet, setPendingBet] = useState<boolean[]>([false, false]) // Pending bets for each player
     const [allowedBet, setAllowedBet] = useState(false)
     const [betAutoState, setBetAutoState] = useState<betAutoStateType[]>(["bet", "bet"])
     const [betValue, setBetValue] = useState<string[]>([initBet6[0], initBet6[0]])
@@ -51,9 +93,9 @@ const GameBoard = ({ bet6, chatParam: { chatOpen, setChatOpen } }: { bet6: strin
             Game_Global_Vars.betValue[i] = val
             setBetValue(prev => {
                 const new_val = [...prev]
-                new_val[i] = val
-                return new_val
-            })
+                new_val[i] = val 
+                return new_val 
+            }) 
         } else {
             setBetValue(prev => {
                 const new_val = [...prev]
@@ -425,13 +467,16 @@ const GameBoard = ({ bet6, chatParam: { chatOpen, setChatOpen } }: { bet6: strin
                             gap: pixiDimension.height < 200 ? 2 : 2
                         }}>
                         <div style={{ display: aviatorState.game_anim_status === "WAITING" ? "block" : "none", width: Math.min(pixiDimension.width, pixiDimension.height) / 4 }}>
-                            <img src={`${process.env.REACT_APP_ASSETS_IMAGE_URL}${webpORpng}/propeller.${webpORpng}`} style={{ rotate: `${rotate}deg` }} alt="propeller" />
+                            <img src={process.env.NODE_ENV === 'development' ? 
+                                'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3QgeD0iMCIgeT0iMCIgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K' : 
+                                `${process.env.REACT_APP_ASSETS_IMAGE_URL}${webpORpng}/propeller.${webpORpng}`} 
+                                style={{ rotate: `${rotate}deg` }} alt="propeller" />
                         </div>
                         <div className='flex flex-col justify-center items-center'>
                             <p className='text-white uppercase font-semibold text-[21px] lg:text-[30px]'>
                                 {
                                     aviatorState.game_anim_status === "ANIM_CRASHED" ?
-                                        "Flew away" :
+                                        "FLEW AWAY!" :
                                         "Waiting for next round"
                                 }
                             </p>
@@ -521,7 +566,7 @@ const GameBoard = ({ bet6, chatParam: { chatOpen, setChatOpen } }: { bet6: strin
                                                 < button onClick={() => handleBet(i)} disabled={betPlaceStatus[i] !== "none"} className={`disabled:opacity-30 flex flex-col min-w-[180px] lg:min-w-[210px] h-[72px] 3xl:w-[395px] 3xl:h-[142px] rounded-[14px] 3xl:rounded-[30px] bg-[#28a909]  justify-center items-center font-semibold border border-[#b2f2a3]/50 hover:opacity-80`}>
                                                     <h4 className='text-[20px] 3xl:text-[42px] leading-[20px] 3xl:leading-[42px] uppercase'>Bet</h4>
                                                     <h4 className='text-[20px]'>
-                                                        {parseFloat(betValue[i]).toFixed(2)} <small>BRL</small>
+                                                        {parseFloat(betValue[i]).toFixed(2)} <small>UGX</small>
                                                     </h4>
                                                 </button>
                                         }

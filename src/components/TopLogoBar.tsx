@@ -163,10 +163,16 @@ const TopLogoBar = ({ loaded, setSettingModalOpen, setHistoryModalOpen, setRuleM
             {
                 <div className='w-full bg-[#1C1C1C]/70 text-white relative'>
                     <div className='flex justify-between items-center w-full ' ref={header_ref} style={{ padding: w_factor / scale * 0.2 }} >
-                        <svg width={120} height={30}><use href="#svg-aviator" /></svg>
+                        {process.env.NODE_ENV === 'development' ? 
+                            <div className="text-2xl font-bold text-red-500">AVIATOR</div> : 
+                            <svg width={120} height={30}><use href="#svg-aviator" /></svg>
+                        }
                         <div className='flex ' style={{ gap: w_factor / scale * 0.3 }}>
                             <div className='flex gap-1 sm:gap-2 justify-center items-center' style={{ fontSize: w_factor / scale * 0.5 }}>
-                                <svg className=" overflow-visible sm:scale-[1.2]" width={w_factor / scale * 0.7} height={w_factor / scale * 0.6}><use width={w_factor / scale * 0.7} height={w_factor / scale * 0.6} href="#svg-wallet" /></svg>
+                                {process.env.NODE_ENV === 'development' ? 
+                                    <span className="text-yellow-500 text-lg">💰</span> : 
+                                    <svg className=" overflow-visible sm:scale-[1.2]" width={w_factor / scale * 0.7} height={w_factor / scale * 0.6}><use width={w_factor / scale * 0.7} height={w_factor / scale * 0.6} href="#svg-wallet" /></svg>
+                                }
                                 {aviatorState.balance.toLocaleString('en-US', { style: 'currency', currency: 'INR' }).substring(1)}
                             </div>
                             <div className=' rounded-full bg-[#3E3E43]' style={{ width: 3 }} />
@@ -187,14 +193,27 @@ const TopLogoBar = ({ loaded, setSettingModalOpen, setHistoryModalOpen, setRuleM
                             </div>
                             <div className=' rounded-full bg-[#3E3E43]' style={{ width: 3 }} />
                             <div className='cursor-pointer self-center' style={{ display: testMobile().iPhone ? "none" : "block" }}>
-                                {
+                                {process.env.NODE_ENV === 'development' ? (
+                                    fullScreen ?
+                                        <div onClick={closeFullscreen} className="w-7 h-7 bg-white/20 rounded flex items-center justify-center cursor-pointer hover:bg-white/30 transition-all">
+                                            <span className="text-xs">⛌</span>
+                                        </div> :
+                                        <div onClick={openFullscreen} className="w-7 h-7 bg-white/20 rounded flex items-center justify-center cursor-pointer hover:bg-white/30 transition-all">
+                                            <span className="text-xs">⛶</span>
+                                        </div>
+                                ) : (
                                     fullScreen ?
                                         <img onClick={closeFullscreen} width={30} src={`${process.env.REACT_APP_ASSETS_IMAGE_URL}${webpORpng}/fullscreen-close.${webpORpng}`} alt="fullscreen" /> :
                                         <img onClick={openFullscreen} width={30} src={`${process.env.REACT_APP_ASSETS_IMAGE_URL}${webpORpng}/fullscreen-open.${webpORpng}`} alt="fullscreen" />
-                                }
+                                )}
                             </div >
                             <div className=' rounded-full bg-[#3E3E43]' style={{ width: 3 }} />
-                            <svg onClick={() => setChatOpen(prev => !prev)} className="w-6 h-4 self-center cursor-pointer" ><use href="#svg-chat" /></svg>
+                            {process.env.NODE_ENV === 'development' ? 
+                                <div onClick={() => setChatOpen(prev => !prev)} className="w-6 h-6 bg-blue-500 rounded flex items-center justify-center cursor-pointer hover:bg-blue-600 transition-all">
+                                    <span className="text-white text-xs">💬</span>
+                                </div> : 
+                                <svg onClick={() => setChatOpen(prev => !prev)} className="w-6 h-4 self-center cursor-pointer" ><use href="#svg-chat" /></svg>
+                            }
                         </div>
                     </div>
                     <div onClick={() => setShowMenu(false)} className='w-full absolute top-[100%] bg-transparent cursor-pointer' style={{ display: showMenu ? "block" : "none", height: "calc(100vh - 50px)" }}></div>
